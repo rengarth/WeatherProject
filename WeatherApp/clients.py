@@ -1,7 +1,10 @@
 import logging
 from datetime import date
+from pathlib import Path
 
 import requests
+import requests_cache
+from retry_requests import retry
 
 from .exceptions import ExternalApiError, WeatherDataValidationError
 
@@ -10,6 +13,13 @@ logger = logging.getLogger(__name__)
 
 class OpenMeteoClient:
     BASE_URL = 'https://archive-api.open-meteo.com/v1/archive'
+    CACHE_PATH = Path(__file__).resolve().parent.parent / '.cache' / 'openmeteo_cache'
+    REQUEST_TIMEOUT_SECONDS = 30
+    RETRIES = 5
+    BACKOFF_FACTOR = 0.2
+
+    def __init__(self):
+        self.session = self._build_session()
 
     def get_weather_data(self, latitude: float, longitude: float, start_date: date, end_date: date) -> dict:
         logger.info(
@@ -38,7 +48,7 @@ class OpenMeteoClient:
         }
 
         try:
-            response = requests.get(self.BASE_URL, params=params, timeout=30)
+            response = self.session.get(self.BASE_URL, params=params, timeout=self.REQUEST_TIMEOUT_SECONDS)
             response.raise_for_status()
         except requests.RequestException as exc:
             logger.error(
@@ -51,6 +61,11 @@ class OpenMeteoClient:
             )
             raise ExternalApiError() from exc
 
+        logger.info(
+            'Open-Meteo response received successfully: from_cache=%s',
+            getattr(response, 'from_cache', False),
+        )
+
         try:
             payload = response.json()
         except ValueError as exc:
@@ -62,3 +77,17 @@ class OpenMeteoClient:
             raise WeatherDataValidationError()
 
         return payload
+
+    @classmethod
+    def _build_session(cls):
+        cls.CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+        cache_session = requests_cache.CachedSession(
+            cache_name=str(cls.CACHE_PATH),
+            expire_after=-1,
+        )
+        return retry(
+            cache_session,
+            retries=cls.RETRIES,
+            backoff_factor=cls.BACKOFF_FACTOR,
+        )
