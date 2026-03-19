@@ -27,6 +27,8 @@ class WeatherRecordSerializer(serializers.ModelSerializer):
         model = WeatherRecord
         fields = [
             'date',
+            'latitude',
+            'longitude',
             'temperature_max',
             'temperature_min',
             'apparent_temperature_max',
@@ -43,6 +45,11 @@ class WeatherCountSerializer(serializers.Serializer):
 class WeatherClearResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
     deleted_records_count = serializers.IntegerField()
+
+
+class WeatherFilterResponseSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    records = WeatherRecordSerializer(many=True)
 
 
 class TemperatureThresholdQuerySerializer(serializers.Serializer):
@@ -67,16 +74,20 @@ class WeatherDynamicFilterSerializer(serializers.Serializer):
 
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
-    min_temperature_max = serializers.FloatField(required=False)
-    max_temperature_max = serializers.FloatField(required=False)
-    min_temperature_min = serializers.FloatField(required=False)
-    max_temperature_min = serializers.FloatField(required=False)
-    min_apparent_temperature_max = serializers.FloatField(required=False)
-    max_apparent_temperature_max = serializers.FloatField(required=False)
-    min_apparent_temperature_min = serializers.FloatField(required=False)
-    max_apparent_temperature_min = serializers.FloatField(required=False)
-    min_wind_speed_max = serializers.FloatField(required=False)
-    max_wind_speed_max = serializers.FloatField(required=False)
+    max_temperature_from = serializers.FloatField(required=False)
+    max_temperature_to = serializers.FloatField(required=False)
+    min_temperature_from = serializers.FloatField(required=False)
+    min_temperature_to = serializers.FloatField(required=False)
+    max_apparent_temperature_from = serializers.FloatField(required=False)
+    max_apparent_temperature_to = serializers.FloatField(required=False)
+    min_apparent_temperature_from = serializers.FloatField(required=False)
+    min_apparent_temperature_to = serializers.FloatField(required=False)
+    wind_speed_max_from = serializers.FloatField(required=False)
+    wind_speed_max_to = serializers.FloatField(required=False)
+    latitude_from = serializers.FloatField(required=False)
+    latitude_to = serializers.FloatField(required=False)
+    longitude_from = serializers.FloatField(required=False)
+    longitude_to = serializers.FloatField(required=False)
     weather_codes = serializers.ListField(
         child=serializers.IntegerField(),
         required=False,
@@ -94,11 +105,13 @@ class WeatherDynamicFilterSerializer(serializers.Serializer):
                 raise serializers.ValidationError('start_date must be less than or equal to end_date.')
 
         range_pairs = [
-            ('min_temperature_max', 'max_temperature_max'),
-            ('min_temperature_min', 'max_temperature_min'),
-            ('min_apparent_temperature_max', 'max_apparent_temperature_max'),
-            ('min_apparent_temperature_min', 'max_apparent_temperature_min'),
-            ('min_wind_speed_max', 'max_wind_speed_max'),
+            ('max_temperature_from', 'max_temperature_to'),
+            ('min_temperature_from', 'min_temperature_to'),
+            ('max_apparent_temperature_from', 'max_apparent_temperature_to'),
+            ('min_apparent_temperature_from', 'min_apparent_temperature_to'),
+            ('wind_speed_max_from', 'wind_speed_max_to'),
+            ('latitude_from', 'latitude_to'),
+            ('longitude_from', 'longitude_to'),
         ]
 
         for min_field, max_field in range_pairs:

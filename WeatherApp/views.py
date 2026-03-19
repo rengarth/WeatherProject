@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from .serializers import (
     WeatherClearResponseSerializer,
+    WeatherFilterResponseSerializer,
     TemperatureThresholdQuerySerializer,
     WeatherCountSerializer,
     WeatherDynamicFilterSerializer,
@@ -174,7 +175,7 @@ class TopExtremeDaysView(APIView):
 class WeatherFilterView(APIView):
     @extend_schema(
         request=WeatherDynamicFilterSerializer,
-        responses={200: WeatherRecordSerializer(many=True)},
+        responses={200: WeatherFilterResponseSerializer},
         description='Returns weather records filtered by dynamic criteria such as date range, temperatures, wind speed and weather codes.'
     )
     def post(self, request):
@@ -183,8 +184,15 @@ class WeatherFilterView(APIView):
         serializer.is_valid(raise_exception=True)
 
         service = WeatherService()
+        records = service.filter_records(serializer.validated_data)
         response_serializer = WeatherRecordSerializer(
-            service.filter_records(serializer.validated_data),
+            records,
             many=True,
         )
-        return Response(response_serializer.data, status=status.HTTP_200_OK)
+        return Response(
+            {
+                'count': len(response_serializer.data),
+                'records': response_serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )

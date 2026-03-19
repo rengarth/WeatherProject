@@ -63,6 +63,8 @@ class WeatherService:
 
                 _, created = WeatherRecord.objects.update_or_create(
                     date=record_date,
+                    latitude=latitude,
+                    longitude=longitude,
                     defaults={
                         'temperature_max': temp_max_values[index],
                         'temperature_min': temp_min_values[index],
