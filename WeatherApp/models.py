@@ -1,9 +1,17 @@
+"""ORM-модели погодного приложения."""
+
 from django.db import models
 
 from .querysets import WeatherRecordQuerySet
 
 
 class WeatherRecord(models.Model):
+    """Модель дневной погодной записи для конкретной даты и локации.
+
+    Нужна для хранения погодных данных в Postgres и работы с ними через ORM,
+    включая выборки, сортировки, фильтры и защиту от дублирования записей.
+    """
+
     objects = WeatherRecordQuerySet.as_manager()
 
     date = models.DateField()
@@ -30,6 +38,15 @@ class WeatherRecord(models.Model):
         ]
 
     def __str__(self):
+        """Возвращает читаемое представление записи.
+
+        Нужно для удобства отладки, логирования и просмотра объектов в shell
+        или административных инструментах.
+
+        Returns:
+            str: Строковое представление погодной записи со значимыми полями.
+        """
+
         return (f'{self.date} | '
                 f'lat={self.latitude} | '
                 f'lon={self.longitude} | '

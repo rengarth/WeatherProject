@@ -1,3 +1,5 @@
+"""Клиент для получения исторических погодных данных из Open-Meteo."""
+
 import logging
 from datetime import date
 from pathlib import Path
@@ -12,6 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 class OpenMeteoClient:
+    """Инкапсулирует работу с Open-Meteo и скрывает детали HTTP-запросов.
+
+    Нужен для того, чтобы слой сервиса не зависел от конкретной библиотеки
+    запросов, настроек retry/cache и формата взаимодействия с внешним API.
+    """
+
     BASE_URL = 'https://archive-api.open-meteo.com/v1/archive'
     CACHE_PATH = Path(__file__).resolve().parent.parent / '.cache' / 'openmeteo_cache'
     REQUEST_TIMEOUT_SECONDS = 30
@@ -19,9 +27,39 @@ class OpenMeteoClient:
     BACKOFF_FACTOR = 0.2
 
     def __init__(self):
+        """Создаёт HTTP-сессию с кэшированием и повторными попытками.
+
+        Это нужно, чтобы повторно не запрашивать одни и те же архивные данные
+        и устойчивее переживать временные сетевые ошибки.
+
+        Returns:
+            None: Метод только инициализирует экземпляр клиента.
+        """
+
         self.session = self._build_session()
 
     def get_weather_data(self, latitude: float, longitude: float, start_date: date, end_date: date) -> dict:
+        """Получает погодные данные за диапазон дат для указанных координат.
+
+        Нужен как единая точка входа в Open-Meteo: метод формирует параметры,
+        делает запрос, проверяет корректность ответа и возвращает JSON дальше
+        в сервисный слой.
+
+        Args:
+            latitude (float): Широта точки, для которой нужно получить погоду.
+            longitude (float): Долгота точки, для которой нужно получить погоду.
+            start_date (date): Начальная дата диапазона включительно.
+            end_date (date): Конечная дата диапазона включительно.
+
+        Returns:
+            dict: JSON-словарь с погодными данными от Open-Meteo.
+
+        Raises:
+            ExternalApiError: Если HTTP-запрос завершился сетевой или серверной ошибкой.
+            WeatherDataValidationError: Если ответ не содержит ожидаемую структуру
+                или вернул невалидный JSON.
+        """
+
         logger.info(
             'Requesting weather data from Open-Meteo: latitude=%s longitude=%s start_date=%s end_date=%s',
             latitude,
@@ -80,6 +118,19 @@ class OpenMeteoClient:
 
     @classmethod
     def _build_session(cls):
+        """Собирает session c файловым кэшем и механизмом retry.
+
+        Нужен для централизации сетевых настроек клиента, чтобы не дублировать
+        создание кэша и параметры повторных попыток в разных местах кода.
+
+        Args:
+            cls (type[OpenMeteoClient]): Класс клиента, из которого берутся настройки
+                кэша, числа повторов и backoff.
+
+        Returns:
+            requests.Session: Подготовленная HTTP-сессия с кэшем и retry-механизмом.
+        """
+
         cls.CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
         cache_session = requests_cache.CachedSession(

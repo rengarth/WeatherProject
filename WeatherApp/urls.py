@@ -1,4 +1,11 @@
+"""Маршруты API погодного приложения.
+
+Этот модуль нужен для связывания URL-путей с соответствующими view-классами
+погодного приложения.
+"""
+
 from django.urls import path
+
 from .views import (
     SunnyDaysCountView,
     SunnyDaysListView,
